@@ -77,3 +77,111 @@ Vector size | cudaMalloc | cudaMemcpy (GPU>CPU) | kernel | cudaMemcpy (CPU>GPU) 
 524 288	| 145.37 |	 685.64 |	 45.03 |	 783.88 |	 120.28 
 
 For small vectors, the most significant parts are `cudaMalloc` and `cudaFree`. The time consumed by these two operations is constant – independent of vector size. Increasing the vector size makes these parts irrelevant. As shown on next graph the most significant piece of code in terms of time consumed becomes `cudaMemcpy` as the size increase. Kernel time also increases but very slowly compared to `cudaMemcpy`.
+
+##Data type: int vs float vs double
+
+Some tests have been carried out to test whether or not data type has an impact on runtime. Due to its size in memory it can be logical for `double` operations to take more time than `float`.
+
+Time consumed by Map-kernel:
+
+Vector size | int | float | double
+------------|-----|-------|-------
+32	| 24.04 	| 24.27 	| 24.34 
+128	| 23.72 	| 23.69 	| 23.79 
+512	| 24.17 	| 24.16 	| 24.16 
+2 048	| 22.85 |	 22.70 	| 22.68 
+8 192	| 23.19 |	 23.44 	| 19.54 
+32 768	| 14.26 |	 14.23 	| 14.68 
+131 072	| 16.60 |	 16.88 	| 17.79 
+
+On GeForce GTX 780, Map code takes exactly the same amount of time for `int`, `float` and `double` (for kernel). It is important to remark that the time consumed by `cudaMemcpy` may differ due to differences between `sizeof(data type)`:
++	sizeof(int) = 4
++	sizeof(float) = 4
++	sizeof(double) = 8
+
+For large vectors `cudaMemcpy` for `doubles` will take twice the time of `floats`.
+
+Other tests have been done in order to compare the impact of `atomicAdd` on runtime. In order to carry out these tests, another algorithm was necessary. Here is the source code used for this algorithm: reduce. This algorithm has to sum all the elements of the input vector and store the result into a one-element-vector.
+
+Example of Reduce algorithm using CUDA:
+```cuda
+#include <iostream>
+
+#define MAX_THREADS 256
+#define SIZE 32
+
+__device__ double atomicAdd(double* address, double val)
+{
+  unsigned long long int* address_as_ull = (unsigned long long int*) address;
+  unsigned long long int old = *address_as_ull, assumed;
+  do
+  {
+    assumed = old;
+    old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+  }
+  while (assumed != old);
+  return __longlong_as_double(old);
+}
+
+template<class T>
+__global__ void sumall_kernel(T *d_vector, T *d_result)
+{
+  __shared__ T cache[MAX_THREADS];
+
+  int cacheIdx = threadIdx.x;
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  cache[cacheIdx] = i >= SIZE ? 0. : d_vector[i];
+  __syncthreads();
+  
+  if (i >= SIZE)
+    return;
+  
+  int padding = blockDim.x/2;
+  while (padding != 0)
+  {
+    if (cacheIdx < padding)
+      cache[cacheIdx] += cache[cacheIdx + padding];
+    
+    __syncthreads();
+    padding /= 2;
+  }
+  
+  if (cacheIdx == 0)
+    atomicAdd(&d_result[0], cache[0]);
+}
+
+int main(int argc, char **argv)
+{
+  cudaFree(0); // Force runtime API context establishment
+  double h_vector_d[SIZE]; // For input and output
+  for (unsigned int i(0) ; i!=SIZE ; i++)
+    h_vector_d[i] = i;
+  
+  double h_result_d;
+  double *d_vector_d, *d_result_d;
+  cudaMalloc(&d_vector_d, SIZE*sizeof(double));
+  cudaMalloc(&d_result_d, sizeof(double));
+  cudaMemcpy(d_vector_d, h_vector_d, SIZE*sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemset(d_result_d, 0, sizeof(double));
+  sumall_kernel<<<(SIZE+MAX_THREADS-1)/MAX_THREADS, MAX_THREADS>>>(d_vector_d, d_result_d);
+  cudaThreadSynchronize(); // Block until the device is finished
+  cudaMemcpy(h_vector_d, d_vector_d, SIZE*sizeof(double), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&h_result_d, d_result_d, sizeof(double), cudaMemcpyDeviceToHost);
+  cudaFree(d_vector_d);
+  cudaFree(d_result_d);
+}
+```
+
+Time consumed by Reduce-kernel:
+
+Vector size | int | float | double | double/float
+------------|-----|-------|--------|-------------
+32	| 22.37 	| 22.11 |	 22.60 |	x1.02
+128	| 22.07 	| 22.01 |	 22.89 |	x1.04
+512	| 22.12 	| 21.90 |	 23.02 |	x1.05
+2 048	| 22.75 |	 22.27 |	 25.61 |	x1.15
+8 192	| 22.71 |	 22.45 |	 32.03 |	x1.47
+32 768	| 18.04 |	 17.51 |	 56.72 |	x3.24
+131 072	| 29.36 |	 27.05 |	 177.23 |	x6.55
+
+We can see that `atomicAdd(int)` and `atomicAdd(float)` are faster than `atomicAdd(double)` which is a non-built-in function. `atomicAdd(double)` becomes inefficient for large vectors.
