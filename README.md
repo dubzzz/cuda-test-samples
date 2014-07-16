@@ -85,6 +85,10 @@ Vector size | cudaMalloc | cudaMemcpy (GPU>CPU) | kernel | cudaMemcpy (CPU>GPU) 
 
 For small vectors, the most significant parts are `cudaMalloc` and `cudaFree`. The time consumed by these two operations is constant – independent of vector size. Increasing the vector size makes these parts irrelevant. As shown on next graph the most significant piece of code in terms of time consumed becomes `cudaMemcpy` as the size increase. Kernel time also increases but very slowly compared to `cudaMemcpy`.
 
+![IMPORTANCE OF EACH PART OF THE CODE ON TIME](https://raw.githubusercontent.com/dubzzz/cuda-test-samples/master/map-mem-alloc/cuda-parts.png)
+
+![INCREASE IN RUNTIME](https://raw.githubusercontent.com/dubzzz/cuda-test-samples/master/map-mem-alloc/cuda-parts-increase.png)
+
 ##Data type: int vs float vs double
 
 ###Source code:
@@ -331,6 +335,8 @@ Vector size | CUDA | CUDA (kernel-only) | Native-C
 32 768	| 415.98 	| 14.46 |	 151.91 
 131 072	| 708.28 	| 16.63 |	 588.12 
 524 288	| 1 612.18 |	 42.34 |	 2 359.40 
+
+![INCREASE IN RUNTIME](https://raw.githubusercontent.com/dubzzz/cuda-test-samples/master/map-vs-native/map-increase.png)
 
 ##CUDA vs native-C: Reduce algorithm
 
