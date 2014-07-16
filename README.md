@@ -279,3 +279,46 @@ dimGrid: 32 32 1. dimBlock: 32 8 1
 ```
 
 These results confirm my previous results.
+
+##CUDA vs native-C: Map algorithm
+
+Example of Map algorithm using native-C:
+```c
+for (unsigned int i(0) ; i!=SIZE ; i++)
+  h_vector[i] = h_vector[i]*h_vector[i];
+```
+
+Runtime comparison:
+
+Vector size | CUDA | CUDA (kernel-only) | Native-C
+------------|------|--------------------|---------
+32	| 306.10 	| 23.50 	| 2.26 
+128	| 310.98 	| 23.77 	| 2.33 
+512	| 311.92 	| 23.77 	| 4.78 
+2 048	| 313.11 	| 22.64 |	 11.52 
+8 192	| 330.88 	| 23.77 |	 40.04 
+32 768	| 415.98 	| 14.46 |	 151.91 
+131 072	| 708.28 	| 16.63 |	 588.12 
+524 288	| 1 612.18 |	 42.34 |	 2 359.40 
+
+##CUDA vs native-C: Reduce algorithm
+
+Example of Reduce algorithm using native-C:
+```c
+h_result = 0.;
+for (unsigned int i(0) ; i!=SIZE ; i++)
+  h_result += h_vector[i];
+```
+
+Runtime comparison:
+
+Vector size | CUDA | CUDA (kernel-only) | Native-C
+------------|------|--------------------|---------
+32	| 343.01 	| 21.80 	| 2.28 
+128	| 344.26 	| 21.82 	| 2.37 
+512	| 564.34 	| 22.39 	| 4.89 
+2 048	| 563.19 |	 22.05 |	 12.26 
+8 192	| 590.45 |	 22.50 |	 42.67 
+32 768	| 658.95 	| 17.28 |	 161.25 
+131 072	| 973.53 	| 27.19 |	 634.94 
+524 288	| 1 939.51 |	 70.11 |	 2 539.74 
