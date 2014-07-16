@@ -28,6 +28,8 @@ The first run of the program is always slower than the others. For that reason, 
 
 ##Impact of memory allocation
 
+https://github.com/dubzzz/cuda-test-samples/tree/master/map-mem-alloc
+
 Memory allocation in CUDA can be very expensive. The following code has been used in order to measure the cost of allocation compared to kernel execution and copies back and forth.
 
 Example of Map algorithm using CUDA:
@@ -79,6 +81,10 @@ Vector size | cudaMalloc | cudaMemcpy (GPU>CPU) | kernel | cudaMemcpy (CPU>GPU) 
 For small vectors, the most significant parts are `cudaMalloc` and `cudaFree`. The time consumed by these two operations is constant – independent of vector size. Increasing the vector size makes these parts irrelevant. As shown on next graph the most significant piece of code in terms of time consumed becomes `cudaMemcpy` as the size increase. Kernel time also increases but very slowly compared to `cudaMemcpy`.
 
 ##Data type: int vs float vs double
+
+https://github.com/dubzzz/cuda-test-samples/tree/master/map-datatype
+
+https://github.com/dubzzz/cuda-test-samples/tree/master/reduce-datatype
 
 Some tests have been carried out to test whether or not data type has an impact on runtime. Due to its size in memory it can be logical for `double` operations to take more time than `float`.
 
@@ -188,6 +194,8 @@ We can see that `atomicAdd(int)` and `atomicAdd(float)` are faster than `atomicA
 
 ##Shared vs Global memory
 
+https://github.com/dubzzz/cuda-test-samples/tree/master/reduce-vs-shared
+
 CUDA has three main levels of memory:
 +	`local`: within a thread
 +	`shared`: within a block (several threads)
@@ -282,6 +290,8 @@ These results confirm my previous results.
 
 ##CUDA vs native-C: Map algorithm
 
+https://github.com/dubzzz/cuda-test-samples/tree/master/map-vs-native
+
 Example of Map algorithm using native-C:
 ```c
 for (unsigned int i(0) ; i!=SIZE ; i++)
@@ -302,6 +312,8 @@ Vector size | CUDA | CUDA (kernel-only) | Native-C
 524 288	| 1 612.18 |	 42.34 |	 2 359.40 
 
 ##CUDA vs native-C: Reduce algorithm
+
+https://github.com/dubzzz/cuda-test-samples/tree/master/reduce-vs-native
 
 Example of Reduce algorithm using native-C:
 ```c
