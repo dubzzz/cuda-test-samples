@@ -185,3 +185,97 @@ Vector size | int | float | double | double/float
 131 072	| 29.36 |	 27.05 |	 177.23 |	x6.55
 
 We can see that `atomicAdd(int)` and `atomicAdd(float)` are faster than `atomicAdd(double)` which is a non-built-in function. `atomicAdd(double)` becomes inefficient for large vectors.
+
+##Shared vs Global memory
+
+CUDA has three main levels of memory:
++	`local`: within a thread
++	`shared`: within a block (several threads)
++	`global`: for every block and every thread
+
+Using local/shared memory instead of global one is certainly a good thing to do when dealing with several consecutives access to the same piece of data among a given thread or a given block of threads. Most of the time, it is used for concealed accesses to global memory. In order to compare accesses to shared and global memories, reduce-kernel has been used and change to test both global and shared accesses.
+
+Adapted version of Reduce-kernel for shared memory:
+```cuda
+__global__ void sumall_kernel_shared(float *d_vector, float *d_result)
+{
+  __shared__ float cache[MAX_THREADS];
+  
+  int cacheIdx = threadIdx.x;
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  cache[cacheIdx] = i >= SIZE ? 0. : d_vector[i];
+  __syncthreads();
+  
+  if (i >= SIZE)
+    return;
+  
+  int padding = blockDim.x/2;
+  while (padding != 0)
+  {
+    if (cacheIdx < padding && i+padding < SIZE)
+      cache[cacheIdx] += cache[cacheIdx + padding];
+    
+    __syncthreads();
+    padding /= 2;
+  }
+  
+  if (cacheIdx == 0)
+    atomicAdd(&d_result[0], cache[0]);
+}
+```
+
+The only difference with previous kernel is the use of the condition: `i+padding<SIZE`. This condition has been added in order to measure the difference between shared and global memory without having to take into account another check. By adding this condition, the difference between these two versions of the kernel is only the memory.
+
+Adapted version of Reduce-kernel for global memory:
+```cuda
+__global__ void sumall_kernel_global(float *d_vector, float *d_result)
+{ // /!\ it changes d_vector
+  int cacheIdx = threadIdx.x;
+  int deltaIdx = blockIdx.x * blockDim.x;
+  int i = deltaIdx + cacheIdx;
+  
+  if (i >= SIZE)
+    return;
+  
+  int padding = blockDim.x/2;
+  while (padding != 0)
+  {
+    if (cacheIdx < padding && i+padding < SIZE)
+      d_vector[i] += d_vector[i + padding];
+    
+    __syncthreads();
+    padding /= 2;
+  }
+  
+  if (cacheIdx == 0)
+    atomicAdd(&d_result[0], d_vector[deltaIdx]);
+}
+```
+
+Time consumed by Reduce-kernel:
+
+Vector size | shared | global | global/shared
+------------|--------|--------|--------------
+32	| 22.19 	| 23.17 |	x1.04
+128	| 22.58 	| 23.19 |	x1.03
+512	| 22.17 	| 23.66 |	x1.07
+2 048	| 22.61 |	 23.84 |	x1.05
+8 192	| 22.11 |	 23.68 |	x1.07
+32 768	| 17.97 |	 20.79 |	x1.16
+131 072	| 28.19 |	 36.28 |	x1.29
+
+On my GPU, the difference is not very huge on that example. The use of `atomicAdd` on global memory for both cases certainly reduces the effect of using a cache stored into shared memory.
+
+In order to measure the difference between shared and global memory access in terms of runtime, you can still run the code: https://raw.githubusercontent.com/parallel-forall/code-samples/master/series/cuda-cpp/transpose/transpose.cu 
+
+Here is the output for my computer:
+```
+Device : GeForce GTX 780
+Matrix size: 1024 1024, Block size: 32 8, Tile size: 32 32
+dimGrid: 32 32 1. dimBlock: 32 8 1
+                  Routine         Bandwidth (GB/s)
+                     copy              203.96
+       shared memory copy              211.39
+```
+
+These results confirm my previous results.
