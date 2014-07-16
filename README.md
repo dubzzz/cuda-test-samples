@@ -26,3 +26,54 @@ user@host:~$ ./a.out > /dev/null ; ./a.out > /dev/null ; ./a.out
 
 The first run of the program is always slower than the others. For that reason, measures are based on the 3rd run.
 
+##Impact of memory allocation
+
+Memory allocation in CUDA can be very expensive. The following code has been used in order to measure the cost of allocation compared to kernel execution and copies back and forth.
+
+Example of Map algorithm using CUDA:
+```cuda
+#include <iostream>
+
+#define MAX_THREADS 256
+#define SIZE 256
+
+__global__ void square_kernel(float *d_vector)
+{
+  int i = blockIdx.x*blockDim.x + threadIdx.x;
+  if (i >= SIZE)
+    return;
+  d_vector[i] = d_vector[i]*d_vector[i];
+}
+
+int main(int argc, char **argv)
+{
+  cudaFree(0); // Force runtime API context establishment
+  
+  float h_vector[SIZE]; // For input and output
+  for (unsigned int i(0) ; i!=SIZE ; i++)
+    h_vector[i] = i;
+  float *d_vector;
+  
+  cudaMalloc(&d_vector, SIZE*sizeof(float));
+  cudaMemcpy(d_vector, h_vector, SIZE*sizeof(float), cudaMemcpyHostToDevice);
+  square_kernel<<<(SIZE+MAX_THREADS-1)/MAX_THREADS, MAX_THREADS>>>(d_vector);
+  cudaThreadSynchronize(); // Block until the device is finished
+  cudaMemcpy(h_vector, d_vector, SIZE*sizeof(float), cudaMemcpyDeviceToHost);
+  cudaFree(d_vector);
+}
+```
+
+Time consumed line by line:
+
+Vector size | cudaMalloc | cudaMemcpy (GPU>CPU) | kernel | cudaMemcpy (CPU>GPU) | cudaFree
+------------|------------|----------------------|--------|----------------------|---------
+32	| 144.31 	| 11.15 	| 22.50 	| 17.31 	| 108.84 
+128	| 143.79 	| 11.21 	| 22.48 	| 17.69 	| 108.23 
+512	| 144.60 	| 11.77 	| 22.67 	| 17.95 	| 110.30 
+2 048	| 144.23 |	 13.72 |	 22.44 |	 20.68 |	 110.46 
+8 192	| 142.33 	| 22.44 |	 22.30 |	 31.29 	| 111.00 
+32 768	| 145.53 |	 65.15 |	 24.06 	| 73.02 |	 114.70 
+131 072	| 144.03 |	 206.38 |	 26.17 |	 240.76 |	 115.45 
+524 288	| 145.37 |	 685.64 |	 45.03 |	 783.88 |	 120.28 
+
+For small vectors, the most significant parts are `cudaMalloc` and `cudaFree`. The time consumed by these two operations is constant – independent of vector size. Increasing the vector size makes these parts irrelevant. As shown on next graph the most significant piece of code in terms of time consumed becomes `cudaMemcpy` as the size increase. Kernel time also increases but very slowly compared to `cudaMemcpy`.
