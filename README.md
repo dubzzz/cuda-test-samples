@@ -322,3 +322,15 @@ Vector size | CUDA | CUDA (kernel-only) | Native-C
 32 768	| 658.95 	| 17.28 |	 161.25 
 131 072	| 973.53 	| 27.19 |	 634.94 
 524 288	| 1 939.51 |	 70.11 |	 2 539.74 
+
+##Other improvements
+
++	Coalesced memory accesses to global memory
++	Aligned memory accesses
++	Non-strided memory accesses
++	Shared memory
++	No bank conflicts
++	Texture memory for read-only accesses can be an advantage
++	`use_fast_math` parameter for `nvcc`: better runtime but less accuracy
+
+All these improvements are described in the document: http://shodor.org/media/content//petascale/materials/UPModules/dynamicProgrammingPartI/bestPractices.pdf 
