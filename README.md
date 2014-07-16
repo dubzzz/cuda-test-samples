@@ -28,11 +28,16 @@ The first run of the program is always slower than the others. For that reason, 
 
 ##Impact of memory allocation
 
+###Source code:
+
 https://github.com/dubzzz/cuda-test-samples/tree/master/map-mem-alloc
+
+###Introduction:
 
 Memory allocation in CUDA can be very expensive. The following code has been used in order to measure the cost of allocation compared to kernel execution and copies back and forth.
 
-Example of Map algorithm using CUDA:
+###Example of Map algorithm using CUDA:
+
 ```cuda
 #include <iostream>
 
@@ -65,7 +70,7 @@ int main(int argc, char **argv)
 }
 ```
 
-Time consumed line by line:
+###Time consumed line by line:
 
 Vector size | cudaMalloc | cudaMemcpy (GPU>CPU) | kernel | cudaMemcpy (CPU>GPU) | cudaFree
 ------------|------------|----------------------|--------|----------------------|---------
@@ -82,13 +87,17 @@ For small vectors, the most significant parts are `cudaMalloc` and `cudaFree`. T
 
 ##Data type: int vs float vs double
 
+###Source code:
+
 https://github.com/dubzzz/cuda-test-samples/tree/master/map-datatype
 
 https://github.com/dubzzz/cuda-test-samples/tree/master/reduce-datatype
 
+###Introduction:
+
 Some tests have been carried out to test whether or not data type has an impact on runtime. Due to its size in memory it can be logical for `double` operations to take more time than `float`.
 
-Time consumed by Map-kernel:
+###Time consumed by Map-kernel:
 
 Vector size | int | float | double
 ------------|-----|-------|-------
@@ -109,7 +118,8 @@ For large vectors `cudaMemcpy` for `doubles` will take twice the time of `floats
 
 Other tests have been done in order to compare the impact of `atomicAdd` on runtime. In order to carry out these tests, another algorithm was necessary. Here is the source code used for this algorithm: reduce. This algorithm has to sum all the elements of the input vector and store the result into a one-element-vector.
 
-Example of Reduce algorithm using CUDA:
+###Example of Reduce algorithm using CUDA:
+
 ```cuda
 #include <iostream>
 
@@ -178,7 +188,7 @@ int main(int argc, char **argv)
 }
 ```
 
-Time consumed by Reduce-kernel:
+###Time consumed by Reduce-kernel:
 
 Vector size | int | float | double | double/float
 ------------|-----|-------|--------|-------------
@@ -194,7 +204,11 @@ We can see that `atomicAdd(int)` and `atomicAdd(float)` are faster than `atomicA
 
 ##Shared vs Global memory
 
+###Source code:
+
 https://github.com/dubzzz/cuda-test-samples/tree/master/reduce-vs-shared
+
+###Introduction:
 
 CUDA has three main levels of memory:
 +	`local`: within a thread
@@ -203,7 +217,8 @@ CUDA has three main levels of memory:
 
 Using local/shared memory instead of global one is certainly a good thing to do when dealing with several consecutives access to the same piece of data among a given thread or a given block of threads. Most of the time, it is used for concealed accesses to global memory. In order to compare accesses to shared and global memories, reduce-kernel has been used and change to test both global and shared accesses.
 
-Adapted version of Reduce-kernel for shared memory:
+###Adapted version of Reduce-kernel for shared memory:
+
 ```cuda
 __global__ void sumall_kernel_shared(float *d_vector, float *d_result)
 {
@@ -234,7 +249,8 @@ __global__ void sumall_kernel_shared(float *d_vector, float *d_result)
 
 The only difference with previous kernel is the use of the condition: `i+padding<SIZE`. This condition has been added in order to measure the difference between shared and global memory without having to take into account another check. By adding this condition, the difference between these two versions of the kernel is only the memory.
 
-Adapted version of Reduce-kernel for global memory:
+###Adapted version of Reduce-kernel for global memory:
+
 ```cuda
 __global__ void sumall_kernel_global(float *d_vector, float *d_result)
 { // /!\ it changes d_vector
@@ -260,7 +276,7 @@ __global__ void sumall_kernel_global(float *d_vector, float *d_result)
 }
 ```
 
-Time consumed by Reduce-kernel:
+###Time consumed by Reduce-kernel:
 
 Vector size | shared | global | global/shared
 ------------|--------|--------|--------------
@@ -273,6 +289,8 @@ Vector size | shared | global | global/shared
 131 072	| 28.19 |	 36.28 |	x1.29
 
 On my GPU, the difference is not very huge on that example. The use of `atomicAdd` on global memory for both cases certainly reduces the effect of using a cache stored into shared memory.
+
+###Bandwidth global vs shared:
 
 In order to measure the difference between shared and global memory access in terms of runtime, you can still run the code: https://raw.githubusercontent.com/parallel-forall/code-samples/master/series/cuda-cpp/transpose/transpose.cu 
 
@@ -290,15 +308,18 @@ These results confirm my previous results.
 
 ##CUDA vs native-C: Map algorithm
 
+###Source code:
+
 https://github.com/dubzzz/cuda-test-samples/tree/master/map-vs-native
 
-Example of Map algorithm using native-C:
+###Example of Map algorithm using native-C:
+
 ```c
 for (unsigned int i(0) ; i!=SIZE ; i++)
   h_vector[i] = h_vector[i]*h_vector[i];
 ```
 
-Runtime comparison:
+###Runtime comparison:
 
 Vector size | CUDA | CUDA (kernel-only) | Native-C
 ------------|------|--------------------|---------
@@ -313,16 +334,19 @@ Vector size | CUDA | CUDA (kernel-only) | Native-C
 
 ##CUDA vs native-C: Reduce algorithm
 
+###Source code:
+
 https://github.com/dubzzz/cuda-test-samples/tree/master/reduce-vs-native
 
-Example of Reduce algorithm using native-C:
+###Example of Reduce algorithm using native-C:
+
 ```c
 h_result = 0.;
 for (unsigned int i(0) ; i!=SIZE ; i++)
   h_result += h_vector[i];
 ```
 
-Runtime comparison:
+###Runtime comparison:
 
 Vector size | CUDA | CUDA (kernel-only) | Native-C
 ------------|------|--------------------|---------
