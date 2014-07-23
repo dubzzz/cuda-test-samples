@@ -15,7 +15,7 @@ The following measurements have been made using the configuration:
 + CUDA compiler (nvcc): 5.5.0
 + C/C++ compiler (gcc/g++): 4.7.3
 
-These measures are the mean of 1,000 measurements. They are expressed in milliseconds.
+These measures are the mean of 1,000 measurements. They are expressed in microseconds.
 
 It was compiled and run using these instructions:
 ```bash
