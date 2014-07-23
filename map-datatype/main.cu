@@ -23,7 +23,7 @@ void showMean(std::vector<float> v)
     float sum(0);
     for (unsigned int i(0) ; i!=v.size() ; i++)
         sum += v[i];
-    std::cout << 1000.*sum/v.size() << " milliseconds" << std::endl;
+    std::cout << 1000.*sum/v.size() << " microseconds" << std::endl;
 }
 
 int main(int argc, char **argv)
